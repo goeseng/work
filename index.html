@@ -137,6 +137,7 @@
       <div class="header-nav">
         <button class="nav-btn active" id="btn-journal" onclick="switchView('journal')">📝 일지 작성</button>
         <button class="nav-btn inactive" id="btn-report" onclick="generateReport()">📊 주간보고 생성</button>
+        <button class="nav-btn inactive" onclick="clearWeekData()" style="background:rgba(255,100,100,0.18);">🗑 초기화</button>
       </div>
     </div>
   </div>
@@ -311,10 +312,19 @@ function goToday() {
 function updateWeekUI() {
   document.getElementById("week-label").textContent = getWeekLabel();
   document.getElementById("report-date") && (document.getElementById("report-date").textContent = getWeekLabel());
-  // 이번 주가 아니면 "오늘" 버튼 표시
   document.getElementById("today-btn").style.display = weekOffset !== 0 ? "" : "none";
-  // 미래는 막기 (다음 주 이상은 이동 불가 — 선택사항)
-  // document.getElementById("next-week-btn").style.opacity = weekOffset >= 0 ? "0.4" : "1";
+}
+
+// ── 현재 주 데이터 초기화 ─────────────────────────
+function clearWeekData() {
+  const label = getWeekLabel();
+  if (!confirm(`${label} 주차의 모든 업무 데이터를 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`)) return;
+  localStorage.removeItem(getStorageKey());
+  data = loadData();
+  activeDay = weekOffset === 0 ? TODAY_KEY : "mon";
+  window._lastReportContent = null;
+  switchView("journal");
+  renderJournal();
 }
 
 // ── View switch ──────────────────────────────────
