@@ -203,8 +203,8 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="docx.js"></script>
+<script src="FileSaver.min.js"></script>
 <script>
 const DAYS = ["월","화","수","목","금"];
 const DAY_KEYS = ["mon","tue","wed","thu","fri"];
@@ -480,23 +480,35 @@ function renderReport(reportContent) {
     return;
   }
 
+  const STATUS_BADGE_STYLE = {
+    "완료":  "background:#e8f5e9;color:#2e7d32",
+    "진행중": "background:#e3f2fd;color:#1565c0",
+    "예정":  "background:#fff8e1;color:#f57f17",
+    "보류":  "background:#fce4ec;color:#b71c1c",
+  };
+
   const rows = DAY_KEYS.map((k,i) => {
     const row = reportContent[k] || {};
-    const raw = data[k].tasks;
-    const dn  = raw.filter(t=>t.done).length;
-    const tot = raw.length;
+    const items = row.taskItems || [];
     const bgColor = i%2===1 ? "#f8fbff" : "#fff";
-    const badgeBg = (dn===tot && tot>0) ? "#e8f5e9" : "#e3f2fd";
-    const badgeColor = (dn===tot && tot>0) ? "#2e7d32" : "#1565c0";
+
+    // 업무 내용 셀: 업무명 나열
+    const taskHtml = items.length > 0
+      ? items.map(t => `<div style="padding:2px 0">${escHtml(t.text)}</div>`).join("")
+      : '<span style="color:#bbb">업무 없음</span>';
+
+    // 진행상황 셀: 업무별 상태 뱃지 각각 표시
+    const statusHtml = items.length > 0
+      ? items.map(t => {
+          const style = STATUS_BADGE_STYLE[t.status] || "background:#f5f5f5;color:#555";
+          return `<div style="margin:2px 0"><span class="status-badge" style="${style}">${escHtml(t.status)}</span></div>`;
+        }).join("")
+      : '-';
+
     return `<tr style="background:${bgColor}">
-      <td class="day-cell">
-        ${DAYS[i]}
-        ${tot>0?`<div style="font-size:11px;color:#aaa;font-weight:400;margin-top:4px">${dn}/${tot}</div>`:''}
-      </td>
-      <td>${escHtml(row.tasks||'')||'<span style="color:#bbb">업무 없음</span>'}</td>
-      <td class="status-cell">
-        ${row.status ? `<span class="status-badge" style="background:${badgeBg};color:${badgeColor}">${escHtml(row.status)}</span>` : '-'}
-      </td>
+      <td class="day-cell">${DAYS[i]}</td>
+      <td style="padding:12px 20px;font-size:14px;color:#333;line-height:1.8;vertical-align:top">${taskHtml}</td>
+      <td class="status-cell" style="vertical-align:top;padding:12px 16px">${statusHtml}</td>
     </tr>`;
   }).join("");
 
@@ -551,15 +563,9 @@ function generateReport() {
   const reportContent = {};
   DAY_KEYS.forEach((k, i) => {
     const d = data[k];
-    const taskLines = d.tasks.map(t => `${t.text}`).join("\n") || "";
-    // 상태 우선순위: 완료 > 진행중 > 예정 > 보류 순으로 대표 상태 결정
-    const statusPriority = ["보류","예정","진행중","완료"];
-    let repStatus = "예정";
-    d.tasks.forEach(t => {
-      if (statusPriority.indexOf(t.status) > statusPriority.indexOf(repStatus)) repStatus = t.status;
-    });
-    if (d.tasks.length === 0) repStatus = "";
-    reportContent[k] = { tasks: taskLines, status: repStatus };
+    // 업무 텍스트와 상태를 함께 저장
+    const taskItems = d.tasks.map(t => ({ text: t.text, status: t.status }));
+    reportContent[k] = { taskItems };
   });
 
   // 특이사항: 입력된 요일의 내용 합치기
@@ -616,18 +622,26 @@ async function downloadDocx() {
   // 데이터 행 (월~금)
   const dataRows = DAY_KEYS.map((k, i) => {
     const row = rc[k] || {};
-    const taskText = row.tasks || "업무 없음";
-    const status   = row.status || "";
-    const sc = statusColors[status] || { bg: "F5F5F5", text: "555555" };
+    const items = row.taskItems || [];
     const bgFill = i % 2 === 1 ? "F8FBFF" : "FFFFFF";
 
-    // 업무 내용: 줄바꿈 → 각각 Paragraph
-    const taskLines = taskText.split("\n").filter(Boolean);
-    const taskParas = taskLines.length > 0
-      ? taskLines.map(line => new Paragraph({
-          children: [new TextRun({ text: line, size: 20, font: "맑은 고딕" })]
+    // 업무 내용: 업무별 Paragraph
+    const taskParas = items.length > 0
+      ? items.map(t => new Paragraph({
+          children: [new TextRun({ text: t.text, size: 20, font: "맑은 고딕" })]
         }))
       : [new Paragraph({ children: [new TextRun({ text: "업무 없음", color: "AAAAAA", size: 20, font: "맑은 고딕" })] })];
+
+    // 진행상황: 업무별 상태 Paragraph
+    const statusParas = items.length > 0
+      ? items.map(t => {
+          const sc = statusColors[t.status] || { bg: "F5F5F5", text: "555555" };
+          return new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun({ text: t.status || "-", bold: true, color: sc.text, size: 20, font: "맑은 고딕" })]
+          });
+        })
+      : [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "-", size: 20, font: "맑은 고딕" })] })];
 
     return new TableRow({
       children: [
@@ -651,17 +665,13 @@ async function downloadDocx() {
           margins: { top: 80, bottom: 80, left: 120, right: 120 },
           children: taskParas
         }),
-        // 진행상황 셀
+        // 진행상황 셀 (업무별 상태 각각)
         new TableCell({
           borders,
           width: { size: 1600, type: WidthType.DXA },
-          shading: { fill: sc.bg, type: ShadingType.CLEAR },
-          verticalAlign: VerticalAlign.CENTER,
+          shading: { fill: bgFill, type: ShadingType.CLEAR },
           margins: { top: 80, bottom: 80, left: 80, right: 80 },
-          children: [new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [new TextRun({ text: status || "-", bold: true, color: sc.text, size: 20, font: "맑은 고딕" })]
-          })]
+          children: statusParas
         }),
       ]
     });
