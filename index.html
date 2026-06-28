@@ -20,6 +20,9 @@
   .nav-btn.active { background: #fff; color: #1565c0; }
   .nav-btn.inactive { background: rgba(255,255,255,0.12); color: #fff; }
   .nav-btn.inactive:hover { background: rgba(255,255,255,0.22); }
+  .week-nav-btn { padding: 6px 12px; border-radius: 7px; border: 1.5px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.12); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+  .week-nav-btn:hover { background: rgba(255,255,255,0.28); }
+  .today-btn { font-size: 12px; padding: 6px 10px; }
 
   /* Body */
   .body { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
@@ -85,6 +88,9 @@
   .report-date { font-size: 13px; color: #888; margin-top: 4px; }
   .regen-btn { padding: 8px 16px; background: #1565c0; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; font-family: inherit; }
   .regen-btn:hover { background: #1976d2; }
+  .download-btn { padding: 8px 16px; background: #fff; color: #1565c0; border: 2px solid #1565c0; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; font-family: inherit; display: none; }
+  .download-btn:hover { background: #e3f2fd; }
+  .report-header-btns { display: flex; gap: 8px; align-items: center; }
   .report-loading { text-align: center; padding: 60px 0; color: #666; }
   .report-loading-icon { font-size: 36px; margin-bottom: 16px; }
   .report-table-wrap { padding: 0 32px 24px; }
@@ -103,15 +109,7 @@
   .report-error { padding: 40px; text-align: center; color: #e53935; }
   .report-empty { text-align: center; padding: 60px 0; color: #999; }
 
-  /* API Key */
-  .apikey-bar { background: #fff8e1; border-bottom: 1px solid #ffe082; padding: 10px 24px; }
-  .apikey-inner { max-width: 900px; margin: 0 auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .apikey-label { font-size: 13px; color: #b45309; font-weight: 600; white-space: nowrap; }
-  .apikey-input { flex: 1; min-width: 260px; padding: 7px 12px; border: 1.5px solid #ffe082; border-radius: 7px; font-size: 13px; outline: none; font-family: inherit; color: #333; }
-  .apikey-input:focus { border-color: #f59e0b; }
-  .apikey-save-btn { padding: 7px 14px; background: #f59e0b; color: #fff; border: none; border-radius: 7px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; white-space: nowrap; }
-  .apikey-save-btn:hover { background: #d97706; }
-  .apikey-hint { font-size: 11px; color: #92400e; }
+
 
   /* Hidden */
   .hidden { display: none; }
@@ -119,14 +117,7 @@
 </head>
 <body>
 
-<div class="apikey-bar">
-  <div class="apikey-inner">
-    <span class="apikey-label">🔑 Anthropic API 키</span>
-    <input class="apikey-input" id="apikey-input" type="password" placeholder="sk-ant-api03-..." oninput="onApiKeyInput()">
-    <button class="apikey-save-btn" onclick="saveApiKey()">저장</button>
-    <span class="apikey-hint" id="apikey-status">키를 입력하면 주간보고 기능을 사용할 수 있어요</span>
-  </div>
-</div>
+
 
 <div class="header">
   <div class="header-inner">
@@ -137,9 +128,16 @@
         <div class="header-sub" id="week-label"></div>
       </div>
     </div>
-    <div class="header-nav">
-      <button class="nav-btn active" id="btn-journal" onclick="switchView('journal')">📝 일지 작성</button>
-      <button class="nav-btn inactive" id="btn-report" onclick="generateReport()">📊 주간보고 생성</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div style="display:flex;align-items:center;gap:4px;">
+        <button class="week-nav-btn" onclick="moveWeek(-1)">◀</button>
+        <button class="week-nav-btn today-btn" id="today-btn" onclick="goToday()" style="display:none">오늘</button>
+        <button class="week-nav-btn" onclick="moveWeek(1)" id="next-week-btn">▶</button>
+      </div>
+      <div class="header-nav">
+        <button class="nav-btn active" id="btn-journal" onclick="switchView('journal')">📝 일지 작성</button>
+        <button class="nav-btn inactive" id="btn-report" onclick="generateReport()">📊 주간보고 생성</button>
+      </div>
     </div>
   </div>
 </div>
@@ -187,12 +185,14 @@
           <div class="report-title">업무보고</div>
           <div class="report-date" id="report-date"></div>
         </div>
-        <button class="regen-btn" onclick="generateReport()">🔄 재생성</button>
+        <div class="report-header-btns">
+          <button class="download-btn" id="download-btn" onclick="downloadDocx()">⬇️ Word 다운로드</button>
+          <button class="regen-btn" onclick="generateReport()">🔄 재생성</button>
+        </div>
       </div>
       <div id="report-loading" class="report-loading hidden">
         <div class="report-loading-icon">⚙️</div>
-        <div style="font-weight:600">AI가 주간보고를 작성 중입니다...</div>
-        <div style="font-size:13px;color:#aaa;margin-top:8px">업무일지를 분석하여 자동으로 요약합니다</div>
+        <div style="font-weight:600">보고서를 생성 중입니다...</div>
       </div>
       <div id="report-content"></div>
       <div id="report-empty" class="report-empty hidden">
@@ -203,6 +203,8 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 <script>
 const DAYS = ["월","화","수","목","금"];
 const DAY_KEYS = ["mon","tue","wed","thu","fri"];
@@ -214,25 +216,44 @@ const STATUS_COLORS = {
   "보류": { bg:"#fce4ec", text:"#b71c1c", border:"#f48fb1" },
 };
 
-function getWeekDates() {
+// ── 주차 기준 날짜 계산 ──────────────────────────
+// weekOffset: 0 = 이번주, -1 = 지난주, +1 = 다음주
+let weekOffset = 0;
+
+function getMonday(offset) {
   const now = new Date();
   const day = now.getDay();
   const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-  const mon = new Date(now); mon.setDate(diff);
-  return Array.from({length:5}, (_, i) => {
-    const d = new Date(mon); d.setDate(mon.getDate() + i);
-    return { month: d.getMonth()+1, date: d.getDate() };
+  const mon = new Date(now);
+  mon.setDate(diff + offset * 7);
+  mon.setHours(0, 0, 0, 0);
+  return mon;
+}
+
+function getWeekDates(offset) {
+  const mon = getMonday(offset);
+  return Array.from({length: 5}, (_, i) => {
+    const d = new Date(mon);
+    d.setDate(mon.getDate() + i);
+    return { year: d.getFullYear(), month: d.getMonth()+1, date: d.getDate() };
   });
 }
 
-function getWeekLabel() {
-  const dates = getWeekDates();
-  const y = new Date().getFullYear();
-  const fmt = ({month, date}) => `${y}.${String(month).padStart(2,'0')}.${String(date).padStart(2,'0')}`;
+function getWeekLabel(offset) {
+  const dates = getWeekDates(offset !== undefined ? offset : weekOffset);
+  const fmt = ({year, month, date}) => `${year}.${String(month).padStart(2,'0')}.${String(date).padStart(2,'0')}`;
   return `${fmt(dates[0])} ~ ${fmt(dates[4])}`;
 }
 
-const WEEK_DATES = getWeekDates();
+// localStorage 키: 월요일 날짜 기준 (예: work_journal_2026-06-23)
+function getStorageKey(offset) {
+  const mon = getMonday(offset !== undefined ? offset : weekOffset);
+  const y = mon.getFullYear();
+  const m = String(mon.getMonth()+1).padStart(2,'0');
+  const d = String(mon.getDate()).padStart(2,'0');
+  return `work_journal_${y}-${m}-${d}`;
+}
+
 const TODAY_KEY = DAY_KEYS[Math.min(new Date().getDay()-1, 4)] || "mon";
 const DEFAULT_TASK_TEXT = "치료비 지원 상담";
 
@@ -247,18 +268,31 @@ function ensureDefaultTask(dayData) {
 }
 
 function loadData() {
+  // 이번 주는 기존 키도 마이그레이션
+  const key = getStorageKey();
   try {
-    const saved = localStorage.getItem("work_journal_v1");
+    const saved = localStorage.getItem(key);
     if (saved) {
       const parsed = JSON.parse(saved);
       const updated = {};
       DAY_KEYS.forEach(k => { updated[k] = ensureDefaultTask(parsed[k] || initialDayData()); });
       return updated;
     }
+    // 이번 주이고 구버전 키 데이터가 있으면 마이그레이션
+    if (weekOffset === 0) {
+      const legacy = localStorage.getItem("work_journal_v1");
+      if (legacy) {
+        const parsed = JSON.parse(legacy);
+        const updated = {};
+        DAY_KEYS.forEach(k => { updated[k] = ensureDefaultTask(parsed[k] || initialDayData()); });
+        localStorage.setItem(key, JSON.stringify(updated));
+        return updated;
+      }
+    }
   } catch(e) {}
-  const data = {};
-  DAY_KEYS.forEach(k => data[k] = initialDayData());
-  return data;
+  const d = {};
+  DAY_KEYS.forEach(k => d[k] = initialDayData());
+  return d;
 }
 
 let data = loadData();
@@ -268,7 +302,39 @@ let saveTimeout = null;
 
 function saveData() {
   clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(() => localStorage.setItem("work_journal_v1", JSON.stringify(data)), 300);
+  saveTimeout = setTimeout(() => {
+    localStorage.setItem(getStorageKey(), JSON.stringify(data));
+  }, 300);
+}
+
+// ── 주차 이동 ─────────────────────────────────────
+function moveWeek(dir) {
+  weekOffset += dir;
+  data = loadData();
+  // 오늘 주가 아니면 월요일부터 표시
+  activeDay = weekOffset === 0 ? TODAY_KEY : "mon";
+  updateWeekUI();
+  renderJournal();
+  // 보고서 뷰라면 재생성
+  if (currentView === "report") generateReport();
+}
+
+function goToday() {
+  weekOffset = 0;
+  data = loadData();
+  activeDay = TODAY_KEY;
+  updateWeekUI();
+  renderJournal();
+  if (currentView === "report") generateReport();
+}
+
+function updateWeekUI() {
+  document.getElementById("week-label").textContent = getWeekLabel();
+  document.getElementById("report-date") && (document.getElementById("report-date").textContent = getWeekLabel());
+  // 이번 주가 아니면 "오늘" 버튼 표시
+  document.getElementById("today-btn").style.display = weekOffset !== 0 ? "" : "none";
+  // 미래는 막기 (다음 주 이상은 이동 불가 — 선택사항)
+  // document.getElementById("next-week-btn").style.opacity = weekOffset >= 0 ? "0.4" : "1";
 }
 
 // ── View switch ──────────────────────────────────
@@ -342,6 +408,7 @@ function setActiveDay(key) {
 
 // ── Render journal ────────────────────────────────
 function renderJournal() {
+  const WEEK_DATES = getWeekDates(weekOffset); // 선택된 주차 기준
   const totalTasks = DAY_KEYS.reduce((s,k) => s + data[k].tasks.length, 0);
   const doneTasks  = DAY_KEYS.reduce((s,k) => s + data[k].tasks.filter(t=>t.done).length, 0);
   const pct = totalTasks > 0 ? Math.round((doneTasks/totalTasks)*100) : 0;
@@ -495,66 +562,199 @@ function renderReport(reportContent) {
     </div>`;
 }
 
-// ── Generate report ───────────────────────────────
-async function generateReport() {
+// ── Generate report (API 없이 직접 생성) ──────────
+function generateReport() {
   switchView("report");
   document.getElementById("report-date").textContent = getWeekLabel();
-  renderReport({_loading: true});
 
-  const summary = DAY_KEYS.map((k,i) => {
+  // 입력 내용을 그대로 보고서 데이터로 변환
+  const reportContent = {};
+  DAY_KEYS.forEach((k, i) => {
     const d = data[k];
-    const tasks = d.tasks.map(t => `- ${t.text} [${t.status}]`).join("\n") || "- 업무 없음";
-    const sp = d.special ? `\n특이사항: ${d.special}` : "";
-    return `${DAYS[i]}요일:\n${tasks}${sp}`;
-  }).join("\n\n");
-
-  const prompt = `다음은 이번 주 업무일지 내용입니다:\n\n${summary}\n\n위 내용을 바탕으로 주간업무보고 양식에 맞게 각 요일별 주요 업무 내용을 간결하고 전문적으로 요약해 주세요. JSON 형식으로만 응답하세요:\n{\n  "mon": {"tasks": "요약 내용", "status": "진행상황 요약"},\n  "tue": {"tasks": "...", "status": "..."},\n  "wed": {"tasks": "...", "status": "..."},\n  "thu": {"tasks": "...", "status": "..."},\n  "fri": {"tasks": "...", "status": "..."},\n  "special": "기타 특이사항 전체 요약"\n}`;
-
-  const apiKey = loadApiKey();
-  if (!apiKey) {
-    renderReport({ error: "API 키가 없습니다. 상단의 🔑 입력창에 Anthropic API 키를 입력하고 저장해주세요." });
-    return;
-  }
-
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-        "x-api-key": apiKey,
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1000,
-        messages: [{ role: "user", content: prompt }],
-      }),
+    const taskLines = d.tasks.map(t => `${t.text}`).join("\n") || "";
+    // 상태 우선순위: 완료 > 진행중 > 예정 > 보류 순으로 대표 상태 결정
+    const statusPriority = ["보류","예정","진행중","완료"];
+    let repStatus = "예정";
+    d.tasks.forEach(t => {
+      if (statusPriority.indexOf(t.status) > statusPriority.indexOf(repStatus)) repStatus = t.status;
     });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error?.message || `HTTP ${res.status}`);
-    const text = json.content?.map(c => c.text||"").join("") || "";
-    const clean = text.replace(/```json|```/g, "").trim();
-    renderReport(JSON.parse(clean));
-  } catch(e) {
-    renderReport({ error: `보고서 생성 중 오류가 발생했습니다: ${e.message}` });
-  }
+    if (d.tasks.length === 0) repStatus = "";
+    reportContent[k] = { tasks: taskLines, status: repStatus };
+  });
+
+  // 특이사항: 입력된 요일의 내용 합치기
+  const specials = DAY_KEYS
+    .map((k,i) => data[k].special ? `[${DAYS[i]}] ${data[k].special}` : "")
+    .filter(Boolean).join("\n");
+  reportContent.special = specials;
+
+  // 전역 저장 (docx 다운로드에서 재사용)
+  window._lastReportContent = reportContent;
+
+  renderReport(reportContent);
+
+  // 다운로드 버튼 표시
+  document.getElementById("download-btn").style.display = "";
 }
 
-// ── API Key ───────────────────────────────────────
-function loadApiKey() {
-  return localStorage.getItem("anthropic_api_key") || "";
-}
-function saveApiKey() {
-  const key = document.getElementById("apikey-input").value.trim();
-  if (!key) { alert("API 키를 입력해주세요."); return; }
-  localStorage.setItem("anthropic_api_key", key);
-  document.getElementById("apikey-status").textContent = "✅ 저장됨";
-  document.getElementById("apikey-status").style.color = "#15803d";
-}
-function onApiKeyInput() {
-  document.getElementById("apikey-status").textContent = "키를 입력하면 주간보고 기능을 사용할 수 있어요";
-  document.getElementById("apikey-status").style.color = "";
+// ── Download DOCX ─────────────────────────────────
+async function downloadDocx() {
+  const rc = window._lastReportContent;
+  if (!rc) return;
+
+  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+          AlignmentType, WidthType, BorderStyle, ShadingType, VerticalAlign } = docx;
+
+  const headerBlue = "1565C0";
+  const lightBlue  = "E3F2FD";
+  const borderColor = "BBCFEE";
+  const cellBorder = { style: BorderStyle.SINGLE, size: 4, color: borderColor };
+  const borders = { top: cellBorder, bottom: cellBorder, left: cellBorder, right: cellBorder };
+
+  // 상태별 색상
+  const statusColors = {
+    "완료":  { bg: "E8F5E9", text: "2E7D32" },
+    "진행중": { bg: "E3F2FD", text: "1565C0" },
+    "예정":  { bg: "FFF8E1", text: "F57F17" },
+    "보류":  { bg: "FCE4EC", text: "B71C1C" },
+  };
+
+  // 헤더 행
+  const headerRow = new TableRow({
+    tableHeader: true,
+    children: ["요일", "주요 업무 내용", "진행상황"].map((txt, i) => new TableCell({
+      borders,
+      width: { size: [900, 6500, 1600][i], type: WidthType.DXA },
+      shading: { fill: headerBlue, type: ShadingType.CLEAR },
+      verticalAlign: VerticalAlign.CENTER,
+      margins: { top: 80, bottom: 80, left: 120, right: 120 },
+      children: [new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: txt, bold: true, color: "FFFFFF", size: 22, font: "맑은 고딕" })]
+      })]
+    }))
+  });
+
+  // 데이터 행 (월~금)
+  const dataRows = DAY_KEYS.map((k, i) => {
+    const row = rc[k] || {};
+    const taskText = row.tasks || "업무 없음";
+    const status   = row.status || "";
+    const sc = statusColors[status] || { bg: "F5F5F5", text: "555555" };
+    const bgFill = i % 2 === 1 ? "F8FBFF" : "FFFFFF";
+
+    // 업무 내용: 줄바꿈 → 각각 Paragraph
+    const taskLines = taskText.split("\n").filter(Boolean);
+    const taskParas = taskLines.length > 0
+      ? taskLines.map(line => new Paragraph({
+          children: [new TextRun({ text: line, size: 20, font: "맑은 고딕" })]
+        }))
+      : [new Paragraph({ children: [new TextRun({ text: "업무 없음", color: "AAAAAA", size: 20, font: "맑은 고딕" })] })];
+
+    return new TableRow({
+      children: [
+        // 요일 셀
+        new TableCell({
+          borders,
+          width: { size: 900, type: WidthType.DXA },
+          shading: { fill: bgFill, type: ShadingType.CLEAR },
+          verticalAlign: VerticalAlign.CENTER,
+          margins: { top: 80, bottom: 80, left: 80, right: 80 },
+          children: [new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun({ text: `${DAYS[i]}`, bold: true, size: 24, color: headerBlue, font: "맑은 고딕" })]
+          })]
+        }),
+        // 업무내용 셀
+        new TableCell({
+          borders,
+          width: { size: 6500, type: WidthType.DXA },
+          shading: { fill: bgFill, type: ShadingType.CLEAR },
+          margins: { top: 80, bottom: 80, left: 120, right: 120 },
+          children: taskParas
+        }),
+        // 진행상황 셀
+        new TableCell({
+          borders,
+          width: { size: 1600, type: WidthType.DXA },
+          shading: { fill: sc.bg, type: ShadingType.CLEAR },
+          verticalAlign: VerticalAlign.CENTER,
+          margins: { top: 80, bottom: 80, left: 80, right: 80 },
+          children: [new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun({ text: status || "-", bold: true, color: sc.text, size: 20, font: "맑은 고딕" })]
+          })]
+        }),
+      ]
+    });
+  });
+
+  // 기타 특이사항 행
+  const specialLines = (rc.special || "").split("\n").filter(Boolean);
+  const specialParas = specialLines.length > 0
+    ? specialLines.map(l => new Paragraph({ children: [new TextRun({ text: l, size: 20, font: "맑은 고딕" })] }))
+    : [new Paragraph({ children: [new TextRun({ text: "-", color: "AAAAAA", size: 20, font: "맑은 고딕" })] })];
+
+  const specialRow = new TableRow({
+    children: [
+      new TableCell({
+        borders,
+        width: { size: 900, type: WidthType.DXA },
+        shading: { fill: "F8FBFF", type: ShadingType.CLEAR },
+        verticalAlign: VerticalAlign.CENTER,
+        margins: { top: 80, bottom: 80, left: 80, right: 80 },
+        children: [new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({ text: "기타\n특이사항", bold: true, size: 20, color: "555555", font: "맑은 고딕" })]
+        })]
+      }),
+      new TableCell({
+        borders,
+        columnSpan: 2,
+        width: { size: 8100, type: WidthType.DXA },
+        shading: { fill: "F8FBFF", type: ShadingType.CLEAR },
+        margins: { top: 80, bottom: 80, left: 120, right: 120 },
+        children: specialParas
+      }),
+    ]
+  });
+
+  // 문서 생성
+  const doc = new Document({
+    sections: [{
+      properties: {
+        page: {
+          size: { width: 16838, height: 11906 }, // A4 가로
+          margin: { top: 1000, right: 1000, bottom: 1000, left: 1000 }
+        }
+      },
+      children: [
+        // 제목
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 200 },
+          children: [new TextRun({ text: "주간업무보고", bold: true, size: 36, color: headerBlue, font: "맑은 고딕" })]
+        }),
+        // 날짜
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 300 },
+          children: [new TextRun({ text: getWeekLabel(), size: 20, color: "888888", font: "맑은 고딕" })]
+        }),
+        // 테이블
+        new Table({
+          width: { size: 9000, type: WidthType.DXA },
+          columnWidths: [900, 6500, 1600],
+          rows: [headerRow, ...dataRows, specialRow]
+        }),
+      ]
+    }]
+  });
+
+  // 파일 다운로드
+  const blob = await Packer.toBlob(doc);
+  const filename = `주간업무보고_${getWeekLabel().replace(/\./g,"-").replace(/ /g,"")}.docx`;
+  saveAs(blob, filename);
 }
 
 
@@ -564,14 +764,7 @@ function escHtml(str) {
 }
 
 // ── Init ──────────────────────────────────────────
-document.getElementById("week-label").textContent = getWeekLabel();
-document.getElementById("report-date").textContent = getWeekLabel();
-const savedKey = loadApiKey();
-if (savedKey) {
-  document.getElementById("apikey-input").value = savedKey;
-  document.getElementById("apikey-status").textContent = "✅ 저장됨";
-  document.getElementById("apikey-status").style.color = "#15803d";
-}
+updateWeekUI();
 renderJournal();
 </script>
 </body>
